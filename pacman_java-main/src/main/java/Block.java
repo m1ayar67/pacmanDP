@@ -33,11 +33,24 @@ public class Block implements GameComponent{
         this.image = image;
     }
     @Override
-    public void draw(Graphics g){
-        if (image != null){
-            g.drawImage(image, x, y, width, height,null);
-        }
+public void draw(Graphics g) {
+    if (image != null) {
+        g.drawImage(image, x, y, width, height, null);
     }
+}
+
+@Override
+public void add(GameComponent component) {
+}
+
+@Override
+public void remove(GameComponent component) {
+}
+
+@Override
+public GameComponent getChild(int i) {
+    return null;
+}
 
     public void setWalls(HashSet<Block> walls) {
         this.walls = walls;

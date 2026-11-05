@@ -46,8 +46,11 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
     private Ghost blueGhostPrototype;
     private Ghost orangeGhostPrototype;
 
-    // Composite
-    private GameGroup gameObjects = new GameGroup();
+    // Composite objects
+    private GameGroup gameObjects;
+    private GameGroup wallsGroup;
+    private GameGroup foodsGroup;
+    private GameGroup ghostsGroup;
 
     // X = wall, O = skip, P = Pac-Man, space = food
     // Ghosts: b = blue, o = orange, p = pink, r = red
@@ -273,22 +276,33 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
             }
         }
 
-        // Composite: Add all game objects to the group
+        // Create the main Composite and subgroups
         gameObjects = new GameGroup();
 
-        gameObjects.add(pacman);
+        wallsGroup = new GameGroup();
+        foodsGroup = new GameGroup();
+        ghostsGroup = new GameGroup();
 
-        for (Ghost ghost : ghosts) {
-            gameObjects.add(ghost);
-        }
-
+        // Add walls to walls group
         for (Block wall : walls) {
-            gameObjects.add(wall);
+            wallsGroup.add(wall);
         }
 
+        // Add foods to foods group
         for (Block food : foods) {
-            gameObjects.add(food);
+            foodsGroup.add(food);
         }
+
+        // Add ghosts to ghosts group
+        for (Ghost ghost : ghosts) {
+            ghostsGroup.add(ghost);
+        }
+
+        // Add groups and Pac-Man to the main group
+        gameObjects.add(wallsGroup);
+        gameObjects.add(foodsGroup);
+        gameObjects.add(ghostsGroup);
+        gameObjects.add(pacman);
     }
 
     @Override
@@ -299,7 +313,7 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
 
     public void draw(Graphics g) {
 
-        // Composite: Draw all game objects through one group
+        // Draw all game objects through the Composite
         gameObjects.draw(g);
 
         // Score and lives
@@ -424,7 +438,7 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
 
         if (eatenFood != null) {
             foods.remove(eatenFood);
-            gameObjects.remove(eatenFood);
+            foodsGroup.remove(eatenFood);
             score += 10;
         }
     }
