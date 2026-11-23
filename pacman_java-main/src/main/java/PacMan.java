@@ -1,7 +1,7 @@
 
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
+import java.util.ArrayList;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
@@ -88,7 +88,9 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
     char[] directions = {'U', 'D', 'L', 'R'};
     Random random = new Random();
 
-    int score = 0;
+    private int score = 0;
+private final List<ScoreObserver> scoreObservers = new ArrayList<>();
+private final ScoreDisplay scoreDisplay = new ScoreDisplay();
     int lives = 3;
     boolean gameOver = false;
 
@@ -203,6 +205,7 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
             }
         }
 
+        addScoreObserver(scoreDisplay);
         gameLoop = new Timer(50, this);
         gameLoop.start();
     }
@@ -316,24 +319,25 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
         // Draw all game objects through the Composite
         gameObjects.draw(g);
 
-        // Score and lives
-        g.setFont(new Font("Arial", Font.PLAIN, 20));
-        g.setColor(Color.WHITE);
+        // Set the position of the score text near the top-left corner.
+    int scorePosition = tileSize / 2 + 2;
 
-        if (gameOver) {
-            g.drawString(
-                "Game Over " + score,
-                tileSize / 2 + 2,
-                tileSize / 2 + 2
-            );
-        } else {
-            g.drawString(
-                "x" + lives + " Score: " + score,
-                tileSize / 2 + 2,
-                tileSize / 2 + 2
-            );
-        }
+    // ScoreDisplay draws the score it received through update().
+    scoreDisplay.draw(g, lives, gameOver, scorePosition, scorePosition);
     }
+
+    public void addScoreObserver(ScoreObserver observer) {
+    scoreObservers.add(observer);
+    observer.update(score);
+}
+
+private void addScore(int points) {
+    score += points;
+
+    for (ScoreObserver observer : scoreObservers) {
+        observer.update(score);
+    }
+}
 
     void move() {
         pacman.x += pacman.velocityX;
@@ -439,7 +443,7 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
         if (eatenFood != null) {
             foods.remove(eatenFood);
             foodsGroup.remove(eatenFood);
-            score += 10;
+            addScore(10);
         }
     }
 
