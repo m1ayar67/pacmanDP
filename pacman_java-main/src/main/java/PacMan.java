@@ -1,7 +1,6 @@
-
 import java.awt.Color;
 import java.awt.Dimension;
-import java.util.ArrayList;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
@@ -9,8 +8,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.HashSet;
-import java.util.Random;
-import java.util.List;
+
 
 import javax.swing.ImageIcon;
 import javax.swing.JPanel;
@@ -19,7 +17,7 @@ import javax.swing.Timer;
 public class PacMan extends JPanel implements ActionListener, KeyListener {
 
     private static PacMan instance;
-
+    
     private int rowCount = 21;
     private int columnCount = 19;
     private int tileSize = 32;
@@ -45,7 +43,7 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
     private Ghost pinkGhostPrototype;
     private Ghost blueGhostPrototype;
     private Ghost orangeGhostPrototype;
-
+    
     // Composite objects
     private GameGroup gameObjects;
     private GameGroup wallsGroup;
@@ -85,12 +83,12 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
 
     Timer gameLoop;
 
-    char[] directions = {'U', 'D', 'L', 'R'};
-    Random random = new Random();
+    // Strategy object
+    private final MovementStrategy chaseStrategy = new ChaseStrategy();
+    private final MovementStrategy randomStrategy = new RandomStrategy();
 
-    private int score = 0;
-private final List<ScoreObserver> scoreObservers = new ArrayList<>();
-private final ScoreDisplay scoreDisplay = new ScoreDisplay();
+
+    int score = 0;
     int lives = 3;
     boolean gameOver = false;
 
@@ -176,36 +174,12 @@ private final ScoreDisplay scoreDisplay = new ScoreDisplay();
             ghost.setWalls(walls);
         }
 
-        // Find the initial path from each ghost to Pac-Man
-        for (Ghost ghost : ghosts) {
-            int ghostRow = ghost.y / tileSize;
-            int ghostCol = ghost.x / tileSize;
-            int pacmanRow = pacman.y / tileSize;
-            int pacmanCol = pacman.x / tileSize;
+// Strategy Pattern: Set the initial movement strategy for each ghost
+for (Ghost ghost : ghosts) {
+    ghost.setStrategy(chaseStrategy);
+    ghost.applyStrategy(pacman, tileSize);
+}
 
-            List<int[]> path = AStar.aStar(
-                ghostRow, ghostCol, pacmanRow, pacmanCol
-            );
-
-            if (path != null && path.size() > 1) {
-                int[] nextStep = path.get(1);
-
-                int nextRow = nextStep[0];
-                int nextCol = nextStep[1];
-
-                if (nextRow > ghostRow) {
-                    ghost.updateDirection('D');
-                } else if (nextRow < ghostRow) {
-                    ghost.updateDirection('U');
-                } else if (nextCol > ghostCol) {
-                    ghost.updateDirection('R');
-                } else if (nextCol < ghostCol) {
-                    ghost.updateDirection('L');
-                }
-            }
-        }
-
-        addScoreObserver(scoreDisplay);
         gameLoop = new Timer(50, this);
         gameLoop.start();
     }
@@ -247,39 +221,18 @@ private final ScoreDisplay scoreDisplay = new ScoreDisplay();
                             x + 14, y + 14, 4, 4, powerFood
                         )
                     );
-
-                } else if (tile == 'r') {
-
-                    // Prototype: clone the red ghost
-                    ghosts.add(
-                        redGhostPrototype.clone(x, y)
-                    );
-
-                } else if (tile == 'p') {
-
-                    // Prototype: clone the pink ghost
-                    ghosts.add(
-                        pinkGhostPrototype.clone(x, y)
-                    );
-
-                } else if (tile == 'b') {
-
-                    // Prototype: clone the blue ghost
-                    ghosts.add(
-                        blueGhostPrototype.clone(x, y)
-                    );
-
-                } else if (tile == 'o') {
-
-                    // Prototype: clone the orange ghost
-                    ghosts.add(
-                        orangeGhostPrototype.clone(x, y)
-                    );
-                }
+                    } else if (tile == 'r') {
+                        ghosts.add(redGhostPrototype.clone(x, y));
+                    } else if (tile == 'p') {
+                        ghosts.add(pinkGhostPrototype.clone(x, y));
+                    } else if (tile == 'b') {
+                        ghosts.add(blueGhostPrototype.clone(x, y));
+                    } else if (tile == 'o') {
+                        ghosts.add(orangeGhostPrototype.clone(x, y));
+                    }
             }
         }
-
-        // Create the main Composite and subgroups
+         // Create the main Composite and subgroups
         gameObjects = new GameGroup();
 
         wallsGroup = new GameGroup();
@@ -307,6 +260,7 @@ private final ScoreDisplay scoreDisplay = new ScoreDisplay();
         gameObjects.add(ghostsGroup);
         gameObjects.add(pacman);
     }
+    
 
     @Override
     public void paintComponent(Graphics g) {
@@ -315,27 +269,16 @@ private final ScoreDisplay scoreDisplay = new ScoreDisplay();
     }
 
     public void draw(Graphics g) {
+    gameObjects.draw(g); // Composite: يرسم عناصر اللعبة
 
-        // Draw all game objects through the Composite
-        gameObjects.draw(g);
+    g.setFont(new Font("Arial", Font.PLAIN, 20));
+    g.setColor(Color.WHITE);
 
-        // Set the position of the score text near the top-left corner.
-    int scorePosition = tileSize / 2 + 2;
-
-    // ScoreDisplay draws the score it received through update().
-    scoreDisplay.draw(g, lives, gameOver, scorePosition, scorePosition);
-    }
-
-    public void addScoreObserver(ScoreObserver observer) {
-    scoreObservers.add(observer);
-    observer.update(score);
-}
-
-private void addScore(int points) {
-    score += points;
-
-    for (ScoreObserver observer : scoreObservers) {
-        observer.update(score);
+    if (gameOver) {
+        g.drawString("Game Over " + score, tileSize / 2 + 2, tileSize / 2 + 2);
+    } else {
+        g.drawString("x" + lives + " Score: " + score,
+                     tileSize / 2 + 2, tileSize / 2 + 2);
     }
 }
 
@@ -368,38 +311,13 @@ private void addScore(int points) {
                     pacman.velocityX = 0;
                     pacman.velocityY = 0;
 
-                    for (Ghost ghost2 : ghosts) {
-                        ghost2.reset();
 
-                        int ghostRow = ghost2.y / tileSize;
-                        int ghostCol = ghost2.x / tileSize;
-                        int pacmanRow = pacman.y / tileSize;
-                        int pacmanCol = pacman.x / tileSize;
-
-                        List<int[]> path = AStar.aStar(
-                            ghostRow,
-                            ghostCol,
-                            pacmanRow,
-                            pacmanCol
-                        );
-
-                        if (path != null && path.size() > 1) {
-                            int[] nextStep = path.get(1);
-
-                            int nextRow = nextStep[0];
-                            int nextCol = nextStep[1];
-
-                            if (nextRow > ghostRow) {
-                                ghost2.updateDirection('D');
-                            } else if (nextRow < ghostRow) {
-                                ghost2.updateDirection('U');
-                            } else if (nextCol > ghostCol) {
-                                ghost2.updateDirection('R');
-                            } else if (nextCol < ghostCol) {
-                                ghost2.updateDirection('L');
-                            }
-                        }
-                    }
+// Strategy Pattern: Reset ghosts and apply chase strategy
+for (Ghost ghost2 : ghosts) {
+    ghost2.reset();
+    ghost2.setStrategy(chaseStrategy);
+    ghost2.applyStrategy(pacman, tileSize);
+}
                 }
             }
 
@@ -410,8 +328,9 @@ private void addScore(int points) {
                 ghost.updateDirection('U');
             }
 
-            ghost.x += ghost.velocityX;
-            ghost.y += ghost.velocityY;
+ghost.x += ghost.velocityX;
+ghost.y += ghost.velocityY;
+
 
             for (Block wall : walls) {
                 if (checkCollision(ghost, wall)
@@ -421,11 +340,10 @@ private void addScore(int points) {
                     ghost.x -= ghost.velocityX;
                     ghost.y -= ghost.velocityY;
 
-                    ghost.direction = directions[
-                        random.nextInt(directions.length)
-                    ];
+// Strategy Pattern: Apply random movement when hitting a wall
+ghost.setStrategy(randomStrategy);
+ghost.applyStrategy(pacman, tileSize);
 
-                    ghost.updateVelocity();
                 }
             }
         }
@@ -441,10 +359,10 @@ private void addScore(int points) {
         }
 
         if (eatenFood != null) {
-            foods.remove(eatenFood);
-            foodsGroup.remove(eatenFood);
-            addScore(10);
-        }
+    foods.remove(eatenFood);
+    foodsGroup.remove(eatenFood); // Composite: يشيل النقطة من مجموعة الرسم
+    score += 10;
+}
     }
 
     public boolean checkCollision(Block a, Block b) {
