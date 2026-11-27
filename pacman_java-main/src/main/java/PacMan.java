@@ -87,16 +87,26 @@ public class PacMan extends JPanel implements ActionListener, KeyListener {
     private final MovementStrategy chaseStrategy = new ChaseStrategy();
     private final MovementStrategy randomStrategy = new RandomStrategy();
 
-
+    private GameState state;
     int score = 0;
     int lives = 3;
-    boolean gameOver = false;
+    
 
     public static PacMan getInstance() {
         if (instance == null) {
             instance = new PacMan();
         }
         return instance;
+    }
+    
+    public void setState(GameState state){
+        this.state = state;
+    }
+    public GameState getState(){
+        return state;
+    }
+    public void stopGame(){
+        gameLoop.stop();
     }
 
     private PacMan() {
@@ -179,6 +189,7 @@ for (Ghost ghost : ghosts) {
     ghost.setStrategy(chaseStrategy);
     ghost.applyStrategy(pacman, tileSize);
 }
+        setState(new PlayingState());
 
         gameLoop = new Timer(50, this);
         gameLoop.start();
@@ -274,8 +285,15 @@ for (Ghost ghost : ghosts) {
     g.setFont(new Font("Arial", Font.PLAIN, 20));
     g.setColor(Color.WHITE);
 
-    if (gameOver) {
-        g.drawString("Game Over " + score, tileSize / 2 + 2, tileSize / 2 + 2);
+    if (state instanceof  GameOverState) {
+        g.setColor(Color.red);
+        g.setFont(new Font("Arial",Font.BOLD,30));
+        
+        String message= "GAME OVER";
+    int x = (width - g.getFontMetrics().stringWidth(message)) / 2;
+    int y = height / 2;
+
+    g.drawString(message, x, y);
     } else {
         g.drawString("x" + lives + " Score: " + score,
                      tileSize / 2 + 2, tileSize / 2 + 2);
@@ -304,7 +322,7 @@ for (Ghost ghost : ghosts) {
                 lives--;
 
                 if (lives == 0) {
-                    gameOver = true;
+                    setState(new GameOverState());
 
                 } else {
                     pacman.reset();
@@ -374,14 +392,10 @@ ghost.applyStrategy(pacman, tileSize);
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        move();
+       state.doAction(this);
         repaint();
 
-        if (gameOver) {
-            gameLoop.stop();
-        }
-
-        if (foods.size() == 0) {
+        if(foods.size()==0){
             gameLoop.stop();
         }
     }
@@ -396,6 +410,10 @@ ghost.applyStrategy(pacman, tileSize);
 
     @Override
     public void keyReleased(KeyEvent e) {
+        
+        if(!(state instanceof PlayingState)){
+            return ;
+        }
 
         if (e.getKeyCode() == KeyEvent.VK_UP) {
             pacman.updateDirection('U');
